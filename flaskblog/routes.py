@@ -3,29 +3,14 @@ import os
 from PIL import Image
 from flask import render_template, url_for, flash, redirect, request
 from flaskblog import app, db, bcrypt
-from flaskblog.forms import LoginForm, RegistrationForm, UpdateAccountForm
+from flaskblog.forms import LoginForm, RegistrationForm, UpdateAccountForm, PostForm
 from flaskblog.models import User, Post
 from flask_login import login_user, logout_user, current_user, login_required
 
 
-posts = [
-    {
-        'author': 'luis flores',
-        'title': 'Blog Post 1',
-        'content': 'First blog post',
-        'date_posted': 'April 2, 2021'
-    },
-    {
-        'author': 'Abigail Fischer',
-        'title': 'Blog Post 2',
-        'content': 'Second blog content',
-        'date_posted': 'April 4, 2021'
-    }
-]
-
-
 @app.route("/")
 def home():
+    posts = Post.query.all()
     return render_template('home.html', posts=posts)
 
 
@@ -38,9 +23,7 @@ def about():
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
-
     form = LoginForm()
-
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and bcrypt.check_password_hash(user.password, form.password.data):
@@ -60,22 +43,16 @@ def login():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
-
     form = RegistrationForm()
-
     if form.validate_on_submit():
         hashed_password = bcrypt.generate_password_hash(
             form.password.data).decode('utf-8')
-
         user = User(username=form.username.data,
                     email=form.email.data, password=hashed_password)
-
         db.session.add(user)
         db.session.commit()
-
         flash(f'Account created for {form.username.data}!', 'success')
         return redirect(url_for('login'))
-
     return render_template('register.html', title="Register", form=form)
 
 
@@ -96,7 +73,6 @@ def save_picture(form_picture):
     i = Image.open(form_picture)
     i.thumbnail(output_size)
     i.save(picture_path)
-    
 
     return picture_fn
 
@@ -125,3 +101,25 @@ def account():
                            title="Account",
                            image_file=image_file,
                            form=form)
+
+
+@app.route('/post/new', methods=['GET', 'POST'])
+@login_required
+def new_post():
+    form = PostForm()
+
+    if form.validate_on_submit():
+        post = Post(title=form.title.data,
+                    content=form.content.data, author=current_user)
+
+        db.session.add(post)
+        db.session.commit()
+
+        flash('Your post has been created!', 'success')
+
+        return redirect(url_for('home'))
+
+    return render_template('create_post.html',
+                           title="New Post",
+                           form=form
+                           )

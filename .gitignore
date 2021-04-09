@@ -7,3 +7,5 @@ __pycache__/
 *.db
 
 flaskblog/static/profile_pics/*
+
+.env
